@@ -1,352 +1,340 @@
+#!/usr/bin/env python
+
 import math
 import random
 
-class Base:
-	"""
-	This class is a base class with common methods.
-	"""
+# We initialize the random generator to a constant so that runs are reproducible.
+random.seed(42)
 
-	def __str__(self):
-		"""
-		Returns this object's string representation.
-		"""
+class Base(object):
+  """
+  This class is a base class with common methods.
+  """
 
-		if hasattr(self, '__unicode__'):
-			return unicode(self).encode('utf-8')
-		return "%s object" % self.__class__.__name__
+  def __str__(self):
+    """
+    Returns this object's string representation.
+    """
+
+    if hasattr(self, '__unicode__'):
+      return unicode(self).encode('utf-8')
+    return "%s object" % self.__class__.__name__
 
 class Person(Base):
-	"""
-	This class represents a person.
-	"""
+  """
+  This class represents a person.
+  """
 
-	_last_id = 0
+  _last_id = 0
 
-	def __init__(self, name=None):
-		"""
-		Class constructor.
+  def __init__(self, name=None):
+    """
+    Class constructor.
 
-		@param name: Name of a person.
-		"""
+    @param name: Name of a person.
+    """
 
-		if not name:
-			name = u"P%d" % Person._last_id
-			Person._last_id += 1
-		self.name = name
-		# Default is to trust yourself ultimately (but it could also be 1 here)
-		self._delegates = [Delegate(self, float('inf'))]
+    if not name:
+      name = u"P%d" % Person._last_id
+      Person._last_id += 1
+    self.name = name
+    # Default is to not have delegates.
+    self._delegates = []
 
-	def __unicode__(self):
-		"""
-		Returns this person's unicode representation, her name.
-		"""
+  def __unicode__(self):
+    """
+    Returns this person's unicode representation, their name.
+    """
 
-		return u"%s" % self.name
-	
-	def __cmp__(self, other):
-		"""
-		Compares this delegate to another.
+    return u"%s" % self.name
+  
+  def __cmp__(self, other):
+    """
+    Compares this delegate to another.
 
-		Compares by their string representation and then by their identity ("address").
-		"""
+    Compares by their string representation and then by their identity ("address").
+    """
 
-		if unicode(self) != unicode(other):
-			return cmp(unicode(self), unicode(other))
-		else:
-			return cmp(id(self), id(other))
-	
-	def __hash__(self):
-		"""
-		Returns hash value for this person.
-		"""
+    if unicode(self) != unicode(other):
+      return cmp(unicode(self), unicode(other))
+    else:
+      return cmp(id(self), id(other))
+  
+  def __hash__(self):
+    """
+    Returns hash value for this person.
+    """
 
-		return hash(unicode(self)) ^ id(self)
-	
-	def delegates(self, delegates=None):
-		"""
-		Gets or sets this person's delegates.
+    return hash(unicode(self)) ^ id(self)
+  
+  def delegates(self, delegates=None):
+    """
+    Gets or sets this person's delegates.
 
-		@param delegates: A list of delegates to set.
-		"""
+    @param delegates: A list of delegates to set.
+    """
 
-		if delegates is not None:
-			sum = 0
-			missing_self = True
-			delegates_dict = {}
-			for s in delegates:
-				if s.ratio == float('inf'):
-					if s.person != self:
-						# Only a person herself can have a precedence before delegates
-						raise ValueError("Invalid ratio: %f" % s.ratio)
-				elif s.ratio <= 0 or s.ratio > 1:
-					raise ValueError("Invalid ratio: %f" % s.ratio)
-				else:
-					sum += s.ratio
-				if s.person == self:
-					missing_self = False
-				if s.person in delegates_dict:
-					delegates_dict[s.person].ratio += s.ratio
-				else:
-					delegates_dict[s.person] = s
-			if missing_self:
-				raise ValueError("Delegates do not contain person herself.")
-			if abs(1 - sum) > 1e-10 and not (len(delegates_dict) == 1 and \
-					delegates_dict.values()[0].ratio == float('inf')):
-				raise ValueError("Sum of all ratios is not 1 but %f" % sum)
-			self._delegates = delegates_dict.values()
-			self._delegates.sort(reverse=True)
+    if delegates is not None:
+      sum = 0.0
+      missing_self = True
+      delegates_dict = {}
+      for d in delegates:
+        if d.ratio <= 0.0 or d.ratio > 1.0:
+          raise ValueError("Invalid ratio: %f" % d.ratio)
+        else:
+          sum += d.ratio
+        if d.person == self:
+          raise ValueError("Delegates contain person themselves.")
+        if d.person in delegates_dict:
+          delegates_dict[d.person].ratio += d.ratio
+        else:
+          delegates_dict[d.person] = d
+      if sum > 1.0:
+        raise ValueError("Sum of all ratios is larger than 1: %f" % sum)
+      self._delegates = delegates_dict.values()
+      self._delegates.sort(reverse=True)
 
-		return self._delegates
+    return self._delegates
 
 class Delegate(Base):
-	"""
-	This class represents a delegate for a person.
-	"""
+  """
+  This class represents a delegate for a person.
+  """
 
-	def __init__(self, person, ratio):
-		"""
-		Class constructor.
+  def __init__(self, person, ratio):
+    """
+    Class constructor.
 
-		@param person: A person this delegate is.
-		@param ratio: A ratio of trust for this delegate. It has to be a number from (0, 1] or
-		              +infinity (only in the case a person and her surogate are the same person).
-		"""
+    @param person: A person this delegate is.
+    @param ratio: A ratio of trust for this delegate. It has to be a number from (0, 1].
+    """
 
-		if (ratio <= 0 or ratio > 1) and ratio != float('inf'):
-			raise ValueError("Invalid ratio: %f" % ratio)
+    if (ratio <= 0.0 or ratio > 1.0):
+      raise ValueError("Invalid ratio: %f" % ratio)
 
-		self.person = person
-		self.ratio = ratio
+    self.person = person
+    self.ratio = ratio
 
-	def __unicode__(self):
-		"""
-		Returns this delegate's unicode representation, her and her ratio.
-		"""
+  def __unicode__(self):
+    """
+    Returns this delegate's unicode representation, them and their ratio.
+    """
 
-		return u"%s(%.2f)" % (self.person, self.ratio)
-	
-	def __cmp__(self, other):
-		"""
-		Compares this delegate to another.
+    return u"%s(%.2f)" % (self.person, self.ratio)
+  
+  def __cmp__(self, other):
+    """
+    Compares this delegate to another.
 
-		Compares first by their ratio and then by them.
-		"""
+    Compares first by their ratio and then by them.
+    """
 
-		if self.ratio != other.ratio:
-			return cmp(self.ratio, other.ratio)
-		else:
-			return cmp(self.person, other.person)
-	
-	def __hash__(self):
-		"""
-		Returns hash value for this delegate.
-		"""
+    if self.ratio != other.ratio:
+      return cmp(self.ratio, other.ratio)
+    else:
+      return cmp(self.person, other.person)
+  
+  def __hash__(self):
+    """
+    Returns hash value for this delegate.
+    """
 
-		return hash(self.ratio) ^ hash(self.person)
+    return hash(self.ratio) ^ hash(self.person)
 
 class Vote(Base):
-	"""
-	This class represents a vote.
-	"""
+  """
+  This class represents a vote.
+  """
 
-	def __init__(self, person, option, ratio=1):
-		"""
-		Class constructor.
+  def __init__(self, person, vote):
+    """
+    Class constructor.
 
-		@param person: Person this vote is from.
-		@param option: Which option this vote is for.
-		@param ratio: Ratio of option the vote is for. It has to be a number from (0, 1].
-		"""
+    @param person: Person this vote is from.
+    @param vote: The value of the vote. It has to be a number from [-1, 1].
+    """
 
-		if ratio <= 0 or ratio > 1:
-			raise ValueError("Invalid ratio: %f" % ratio)
+    if vote < -1 or vote > 1:
+      raise ValueError("Invalid vote: %f" % vote)
 
-		self.person = person
-		self.option = option
-		self.ratio = ratio
+    self.person = person
+    self.vote = vote
 
-	def __unicode__(self):
-		"""
-		Returns this vote's unicode representation, option and its ratio.
-		"""
+  def __unicode__(self):
+    """
+    Returns this vote's unicode representation.
+    """
 
-		return u"%s(%.2f)" % (self.option, self.ratio)
+    return u"%.2f" % self.vote
 
 def delegate_vote(person, votes_dict, pending, visited=[]):
-	"""
-	For persons who did not vote for themselves this function computes a delegate vote.
+  """
+  For persons who did not vote for themselves this function computes a delegate vote.
 
-	@param person: A person to computer delegate vote for.
-	@param votes_dict: A dictionary of already computer votes.
-	@param pending: A dictionary of pending persons to computer delegate vote for.
-	@param visited: A list of delegate votes we have already tried to compute.
+  @param person: A person to computer delegate vote for.
+  @param votes_dict: A dictionary of already computed votes.
+  @param pending: A dictionary of pending persons to computer delegate vote for.
+  @param visited: A list of delegate votes we have already tried to compute.
 
-	@return: None if the delegate vote for this person is impossible to compute, an empty list
-	         if it is currently not possible to compute it or a list of computed votes
-	"""
+  @return: None if the delegate vote for this person is impossible to compute, or a computed vote.
+  """
 
-	if person in votes_dict:
-		# Vote for this person is already known
-		return votes_dict[person]
+  if person in votes_dict:
+    # Vote for this person is already known.
+    return votes_dict[person]
 
-	if person not in pending:
-		# This person does not exist in current population so we are unable to compute vote her
-		# This probably means that we removed the person from votes_dict and pending as her delegate
-		# vote was not computable
-		return None
+  if person not in pending:
+    # This person does not exist in current population so we are unable to compute their vote.
+    # This probably means that we removed the person from votes_dict and pending as their delegate
+    # vote was not computable.
+    return None
 
-	delegates = person.delegates()
-	assert len(delegates) > 0
+  if person in visited:
+    # In computing the delegate vote we came back to vote we are already computing.
+    return None
 
-	if len(delegates) == 1:
-		# Person does not have any delegates defined (except herself)
-		assert delegates[0].person == person
-		return None
-	if person in visited:
-		# In computing the delegate vote we came back to vote we are already computing 
-		return None
+  delegates = person.delegates()
 
-	votes = []
-	for s in delegates:
-		if s.person == person:
-			assert True if pending[s.person] is None else s.ratio != float('inf')
-			votes.append((s.ratio, pending[s.person]))
-		else:
-			votes.append((s.ratio, delegate_vote(s.person, votes_dict, pending, visited + [person])))
-	
-	known_votes = [(r, vs) for (r, vs) in votes if vs is not None]
+  votes = []
+  for d in delegates:
+    assert d.person != person
 
-	if len(known_votes) == 0:
-		# The delegate vote is impossible to compute for this person
-		# (we have a subgraph where we cannot do anything)
-		return None
+    votes.append((d.ratio, delegate_vote(d.person, votes_dict, pending, visited + [person])))
+  
+  # We remove votes which were not possible to compute.
+  known_votes = [(r, v) for (r, v) in votes if v is not None]
 
-	sum = 0
-	for (r, vs) in known_votes:
-		if vs == []:
-			# The delegate is currently not possible to compute
-			return []
-		else:
-			sum += r
-	
-	known_votes = [(r/sum, vs) for (r, vs) in known_votes] # We normalize
-	
-	results = {}
-	for (r, vs) in known_votes:
-		for v in vs:
-			results[v.option] = results.get(v.option, 0) + r * v.ratio
+  if len(known_votes) == 0:
+    # The delegate vote is impossible to compute for this person
+    # (we have a subgraph where we cannot do anything).
+    return None
 
-	return [Vote(person, option, ratio) for (option, ratio) in results.items()]
+  sum = 0.0
+  for (r, v) in known_votes:
+    sum += r
 
-def delegate_version(persons, options, votes):
-	"""
-	Delegate version of calculating results.
+  # We normalize to votes which were possible to compute.
+  known_votes = [(r / sum, v) for (r, v) in known_votes]
 
-	@param persons: population
-	@param options: options from which votes were made
-	@param votes: votes made
+  result = 0.0
+  for (r, v) in known_votes:
+    result += r * v.vote
 
-	@return: A dictionary of options and votes for this options
-	"""
+  # TODO: Store computed vote into votes_dict and remove it from pending.
+  return Vote(person, result)
 
-	if len(votes) == 0:
-		raise ValueError("At least one vote has to be cast")
-	if len(options) < 2:
-		raise ValueError("We have to have options to choose from")
-	if len(persons) == 0:
-		raise ValueError("Zero-sized population")
+def compute_all_votes(persons, votes):
+  """
+  Compute all delegated votes.
 
-	# A dictionary of (currently) finalized votes, each person can have multiple votes,
-	# but the sum of all her votes has to be 1
-	votes_dict = {}
+  @param persons: A population.
+  @param votes: Votes made.
 
-	# Persons we have to calculate something for
-	# (who didn't vote or who do not use precedence before delegates)
-	pending = {}
+  @return: A list of made votes plus delegated votes.
+  """
 
-	for v in votes:
-		assert v.ratio == 1
-		assert v.person not in votes_dict and v.person not in pending
+  if len(votes) == 0:
+    raise ValueError("At least one vote has to be cast.")
+  if len(persons) == 0:
+    raise ValueError("Zero-sized population.")
 
-		# Person has voted and has a precedence before delegates or it is the only one delegate defined
-		if v.person.delegates()[0].ratio == float('inf') or len(v.person.delegates()) == 1:
-			assert v.person.delegates()[0].person == v.person
-			votes_dict[v.person] = [v]
-		else:
-			pending[v.person] = [v]
-	for p in persons:
-		if not (p in votes_dict.keys() or p in pending.keys()):
-			pending[p] = None
+  # A dictionary of (currently) finalized votes.
+  votes_dict = {}
 
-	# A list of persons we could not compute votes for
-	unable_votes = []
+  # Persons we have to calculate delegation for.
+  pending = set()
 
-	while len(pending) > 0:
-		for p in pending.keys():
-			assert p not in votes_dict and p not in unable_votes
-			vs = delegate_vote(p, votes_dict, pending)
-			if vs is None:
-				# This one we will never be able to compute
-				unable_votes.append(p)
-				del pending[p]
-			elif vs:
-				assert all([v.person == p for v in vs])
-				assert abs(1 - sum([v.ratio for v in vs])) < 1e-10
-				votes_dict[p] = vs
-				del pending[p]
-			# Otherwise we cannot do anything at this moment with this pending person
+  for v in votes:
+    assert v.person not in votes_dict and v.person not in pending
+    votes_dict[v.person] = v
 
-	# Sums the results
-	results_dict = dict([(o, 0) for o in options])
-	for vs in votes_dict.values():
-		assert vs
-		for v in vs:
-			results_dict[v.option] += v.ratio
-	
-	if unable_votes:
-		print "Unable to compute vote for: %s" % ", ".join(["%s" % s for s in sorted(unable_votes)])
-	
-	return sorted(results_dict.items())
+  for p in persons:
+    if p in votes_dict:
+      continue
+
+    assert p not in pending
+    pending.add(p)
+
+  # A list of persons we could not compute votes for.
+  unable_votes = []
+
+  while len(pending) > 0:
+    for p in pending:
+      assert p not in votes_dict and p not in unable_votes
+
+      vote = delegate_vote(p, votes_dict, pending)
+
+      if vote is None:
+        # This one we will never be able to compute.
+        unable_votes.append(p)
+      else:
+        # TODO: This could be done by delegate_vote itself.
+        votes_dict[p] = vote
+
+      pending.remove(p)
+
+      # We just want to pick an arbitrary p from pending in this inner loop.
+      # But we cannot continue looping in inner loop because we modified the pending set.
+      break
+
+  if unable_votes:
+    print "Unable to compute vote for: %s" % ", ".join(["%s" % s for s in sorted(unable_votes)])
+
+  return votes_dict.values()
+
+def compute_results(votes):
+  """
+  Compute the result (average of all votes).
+
+  @param votes: Votes made.
+
+  @return: Voting result.
+  """
+  
+  sum = 0.0
+  for v in votes:
+    sum += v.vote
+  
+  return sum / len(votes)
 
 def main():
-	"""
-	Main function.
+  """
+  Main function.
 
-	It makes random population, random trust network with random votes and computes results for all this.
-	"""
+  It makes a random population, a random delegation network with random votes and computes results for all this.
+  """
 
-	size = 4 # Size of a random population
-	options = ['A', 'B'] # Options for random votes
+  # Size of a random population.
+  size = 50
 
-	persons = [Person() for i in range(size)] # Random population
+  # Random population.
+  persons = [Person() for i in range(size)]
 
-	# We define random delegates
-	for p in persons:
-		sample = random.sample(persons, random.randint(0, int(math.sqrt(size))))
-		delegates = [Delegate(s, 1 - random.random()) for s in sample]
-		sum = 0
-		for s in delegates:
-			sum += s.ratio
-		for s in delegates:
-			s.ratio /= sum
-		if p not in sample:
-			delegates.append(Delegate(p, float('inf'))) # Person herself has to be among delegates
-		p.delegates(delegates)
-	
-	# And some from population randomly vote
-	random_sample = random.sample(persons, random.randint(1, size / 2))
-	votes = sorted([Vote(p, random.choice(options)) for p in random_sample], key=lambda el: el.person)
-	
-	for p in persons:
-		print u"%s:" % p.name
-		for s in p.delegates():
-			print u" %s" % s
+  # We define random delegates.
+  for p in persons:
+    sample = random.sample(persons, random.randint(0, int(math.sqrt(size))))
+    delegates = [Delegate(s, random.uniform(0, 1)) for s in sample if s is not p]
+    sum = 1e-15
+    for s in delegates:
+      sum += s.ratio
+    for s in delegates:
+      s.ratio /= sum
+    p.delegates(delegates)
 
-	for v in votes:
-		print u"%s: %s" % (v.person, v)
+  # And some from population randomly vote
+  random_sample = random.sample(persons, random.randint(1, size / 2))
+  votes = sorted([Vote(p, random.uniform(-1, 1)) for p in random_sample], key=lambda el: el.person)
 
-	# What does delegate version of results say?
-	print delegate_version(persons, options, votes)
+  for p in persons:
+    print u"%s:" % p.name
+    for s in p.delegates():
+      print u" %s" % s
+
+  for v in votes:
+    print u"%s: %s" % (v.person, v)
+
+  votes = compute_all_votes(persons, votes)
+  print u"Result: %.2f" % compute_results(votes)
 
 if __name__ == "__main__":
-	main()
+  main()
