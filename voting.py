@@ -21,6 +21,13 @@ class Base(object):
       return unicode(self).encode('utf-8')
     return "%s object" % self.__class__.__name__
 
+  def __repr__(self):
+    """
+    Returns this object's string representation.
+    """
+
+    return self.__str__()
+
 class Person(Base):
   """
   This class represents a person.
@@ -161,6 +168,9 @@ class Vote(Base):
     self.person = person
     self.vote = vote
 
+    # For debugging.
+    self._source_votes = []
+
   def __unicode__(self):
     """
     Returns this vote's unicode representation.
@@ -234,7 +244,10 @@ def delegate_vote(person, votes_dict, pending, visited=[]):
     result += r * v.vote
 
   # TODO: Store computed vote into votes_dict and remove it from pending.
-  return Vote(person, result)
+  vote = Vote(person, result)
+  vote._source_votes = known_votes
+
+  return vote
 
 def compute_all_votes(persons, votes):
   """
@@ -359,6 +372,7 @@ def main():
 
   for v in sorted(votes):
     print u" %s" % v
+    print u"  %s" % v._source_votes
 
 if __name__ == "__main__":
   main()
