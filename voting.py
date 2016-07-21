@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import time
 import math
 import random
 
@@ -121,7 +122,7 @@ class Delegate(Base):
     """
 
     return u"%s(%.2f)" % (self.person, self.ratio)
-  
+
   def __cmp__(self, other):
     """
     Compares this delegate to another.
@@ -165,7 +166,19 @@ class Vote(Base):
     Returns this vote's unicode representation.
     """
 
-    return u"%.2f" % self.vote
+    return u"%s(%.2f)" % (self.person, self.vote)
+
+  def __cmp__(self, other):
+    """
+    Compares this vote to another.
+
+    Compares first by their person and then by a vote.
+    """
+
+    if self.person != other.person:
+      return cmp(self.person, other.person)
+    else:
+      return cmp(self.vote, other.vote)
 
 def delegate_vote(person, votes_dict, pending, visited=[]):
   """
@@ -325,16 +338,27 @@ def main():
   random_sample = random.sample(persons, random.randint(1, size / 2))
   votes = sorted([Vote(p, random.uniform(-1, 1)) for p in random_sample], key=lambda el: el.person)
 
+  print u"Delegations:"
+
   for p in persons:
-    print u"%s:" % p.name
+    print u" %s:" % p.name
     for s in p.delegates():
-      print u" %s" % s
+      print u"  %s" % s
+
+  print u"Votes:"
 
   for v in votes:
-    print u"%s: %s" % (v.person, v)
+    print u" %s" % v
 
+  before = time.clock()
   votes = compute_all_votes(persons, votes)
-  print u"Result: %.2f" % compute_results(votes)
+  after = time.clock()
+  print u"Result: %.2f, time: %.3fs" % (compute_results(votes), after - before)
+
+  print u"Delegated votes:"
+
+  for v in sorted(votes):
+    print u" %s" % v
 
 if __name__ == "__main__":
   main()
