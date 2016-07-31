@@ -531,7 +531,7 @@ def main():
     for p in persons:
       sample = random.sample(persons, random.randint(0, int(math.sqrt(size))))
       delegates = [Delegate(s, random.uniform(0, 1)) for s in sample if s is not p]
-      sum = 1e-15
+      sum = 1e-12
       for s in delegates:
         sum += s.ratio
       for s in delegates:
