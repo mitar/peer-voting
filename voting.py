@@ -4,9 +4,6 @@ import time
 import math
 import random
 
-# We initialize the random generator to a constant so that runs are reproducible.
-random.seed(42)
-
 class Base(object):
   """
   This class is a base class with common methods.
@@ -190,123 +187,249 @@ class Vote(Base):
     else:
       return cmp(self.vote, other.vote)
 
-def delegate_vote(person, votes_dict, pending, visited=[]):
-  """
-  For persons who did not vote for themselves this function computes a delegate vote.
+class RecursiveDelegationOne(object):
+  @classmethod
+  def _delegate_vote(cls, person, votes_dict, pending, visited=[]):
+    """
+    For persons who did not vote for themselves this function computes a delegate vote.
 
-  @param person: A person to computer delegate vote for.
-  @param votes_dict: A dictionary of already computed votes.
-  @param pending: A dictionary of pending persons to computer delegate vote for.
-  @param visited: A list of delegate votes we have already tried to compute.
+    @param person: A person to computer delegate vote for.
+    @param votes_dict: A dictionary of already computed votes.
+    @param pending: A dictionary of pending persons to computer delegate vote for.
+    @param visited: A list of delegate votes we have already tried to compute.
 
-  @return: None if the delegate vote for this person is impossible to compute, or a computed vote.
-  """
+    @return: None if the delegate vote for this person is impossible to compute, or a computed vote.
+    """
 
-  if person in votes_dict:
-    # Vote for this person is already known.
-    return votes_dict[person]
+    if person in votes_dict:
+      # Vote for this person is already known.
+      return votes_dict[person]
 
-  if person not in pending:
-    # This person does not exist in current population so we are unable to compute their vote.
-    # This probably means that we removed the person from votes_dict and pending as their delegate
-    # vote was not computable.
-    return None
+    if person not in pending:
+      # This person does not exist in current population so we are unable to compute their vote.
+      # This probably means that we removed the person from votes_dict and pending as their delegate
+      # vote was not computable.
+      return None
 
-  if person in visited:
-    # In computing the delegate vote we came back to vote we are already computing.
-    return None
+    if person in visited:
+      # In computing the delegate vote we came back to vote we are already computing.
+      return None
 
-  delegates = person.delegates()
+    delegates = person.delegates()
 
-  votes = []
-  for d in delegates:
-    assert d.person != person
+    votes = []
+    for d in delegates:
+      assert d.person != person
 
-    votes.append((d.ratio, delegate_vote(d.person, votes_dict, pending, visited + [person])))
+      votes.append((d.ratio, cls._delegate_vote(d.person, votes_dict, pending, visited + [person])))
   
-  # We remove votes which were not possible to compute.
-  known_votes = [(r, v) for (r, v) in votes if v is not None]
+    # We remove votes which were not possible to compute.
+    known_votes = [(r, v) for (r, v) in votes if v is not None]
 
-  if len(known_votes) == 0:
-    # The delegate vote is impossible to compute for this person
-    # (we have a subgraph where we cannot do anything).
-    return None
+    if len(known_votes) == 0:
+      # The delegate vote is impossible to compute for this person
+      # (we have a subgraph where we cannot do anything).
+      return None
 
-  sum = 0.0
-  for (r, v) in known_votes:
-    sum += r
+    sum = 0.0
+    for (r, v) in known_votes:
+      sum += r
 
-  # We normalize to votes which were possible to compute.
-  known_votes = [(r / sum, v) for (r, v) in known_votes]
+    # We normalize to votes which were possible to compute.
+    known_votes = [(r / sum, v) for (r, v) in known_votes]
 
-  result = 0.0
-  for (r, v) in known_votes:
-    result += r * v.vote
+    result = 0.0
+    for (r, v) in known_votes:
+      result += r * v.vote
 
-  # TODO: Store computed vote into votes_dict and remove it from pending.
-  vote = Vote(person, result)
-  vote._source_votes = known_votes
+    # This version computes vote for same person multiple times which makes it inefficient,
+    # but also makes values potentially different (if a different set of known votes is used
+    # to compute the value during one graph traversal and then later on a different set because
+    # some values are already known).
+    vote = Vote(person, result)
+    vote._source_votes = known_votes
 
-  return vote
+    return vote
 
-def compute_all_votes(persons, votes):
-  """
-  Compute all delegated votes.
+  @classmethod
+  def compute_all_votes(cls, persons, votes):
+    """
+    Compute all delegated votes.
 
-  @param persons: A population.
-  @param votes: Votes made.
+    @param persons: A population.
+    @param votes: Votes made.
 
-  @return: A list of made votes plus delegated votes.
-  """
+    @return: A list of made votes plus delegated votes.
+    """
 
-  if len(votes) == 0:
-    raise ValueError("At least one vote has to be cast.")
-  if len(persons) == 0:
-    raise ValueError("Zero-sized population.")
+    if len(votes) == 0:
+      raise ValueError("At least one vote has to be cast.")
+    if len(persons) == 0:
+      raise ValueError("Zero-sized population.")
 
-  # A dictionary of (currently) finalized votes.
-  votes_dict = {}
+    # A dictionary of (currently) finalized votes.
+    votes_dict = {}
 
-  # Persons we have to calculate delegation for.
-  pending = set()
+    # Persons we have to calculate delegation for.
+    pending = set()
 
-  for v in votes:
-    assert v.person not in votes_dict and v.person not in pending
-    votes_dict[v.person] = v
+    for v in votes:
+      assert v.person not in votes_dict and v.person not in pending
+      votes_dict[v.person] = v
 
-  for p in persons:
-    if p in votes_dict:
-      continue
+    for p in persons:
+      if p in votes_dict:
+        continue
 
-    assert p not in pending
-    pending.add(p)
+      assert p not in pending
+      pending.add(p)
 
-  # A list of persons we could not compute votes for.
-  unable_votes = []
+    # A list of persons we could not compute votes for.
+    unable_votes = []
 
-  while len(pending) > 0:
-    for p in pending:
-      assert p not in votes_dict and p not in unable_votes
+    while len(pending) > 0:
+      for p in pending:
+        assert p not in votes_dict and p not in unable_votes
 
-      vote = delegate_vote(p, votes_dict, pending)
+        vote = cls._delegate_vote(p, votes_dict, pending)
 
-      if vote is None:
-        # This one we will never be able to compute.
-        unable_votes.append(p)
-      else:
-        # TODO: This could be done by delegate_vote itself.
-        votes_dict[p] = vote
+        if vote is None:
+          # This one we will never be able to compute.
+          unable_votes.append(p)
+        else:
+          votes_dict[p] = vote
 
-      pending.remove(p)
+        pending.remove(p)
 
-      # We just want to pick an arbitrary p from pending in this inner loop.
-      # But we cannot continue looping in inner loop because we modified the pending set.
-      break
+        # We just want to pick an arbitrary p from pending in this inner loop.
+        # But we cannot continue looping in inner loop because we modified the pending set.
+        break
 
-  if unable_votes:
-    print "Unable to compute vote for: %s" % ", ".join(["%s" % s for s in sorted(unable_votes)])
+    #if unable_votes:
+    #  print "Unable to compute vote for: %s" % ", ".join(["%s" % s for s in sorted(unable_votes)])
 
-  return votes_dict.values()
+    return votes_dict.values()
+
+class RecursiveDelegationTwo(object):
+  @classmethod
+  def _delegate_vote(cls, person, votes_dict, pending, visited=[]):
+    """
+    For persons who did not vote for themselves this function computes a delegate vote.
+
+    @param person: A person to computer delegate vote for.
+    @param votes_dict: A dictionary of already computed votes.
+    @param pending: A dictionary of pending persons to computer delegate vote for.
+    @param visited: A list of delegate votes we have already tried to compute.
+
+    @return: None if the delegate vote for this person is impossible to compute, or a computed vote.
+    """
+
+    if person in votes_dict:
+      # Vote for this person is already known.
+      return votes_dict[person]
+
+    if person not in pending:
+      # This person does not exist in current population so we are unable to compute their vote.
+      # This probably means that we removed the person from votes_dict and pending as their delegate
+      # vote was not computable.
+      return None
+
+    if person in visited:
+      # In computing the delegate vote we came back to vote we are already computing.
+      return None
+
+    delegates = person.delegates()
+
+    votes = []
+    for d in delegates:
+      assert d.person != person
+
+      votes.append((d.ratio, cls._delegate_vote(d.person, votes_dict, pending, visited + [person])))
+  
+    # We remove votes which were not possible to compute.
+    known_votes = [(r, v) for (r, v) in votes if v is not None]
+
+    if len(known_votes) == 0:
+      # The delegate vote is impossible to compute for this person
+      # (we have a subgraph where we cannot do anything).
+      return None
+
+    sum = 0.0
+    for (r, v) in known_votes:
+      sum += r
+
+    # We normalize to votes which were possible to compute.
+    known_votes = [(r / sum, v) for (r, v) in known_votes]
+
+    result = 0.0
+    for (r, v) in known_votes:
+      result += r * v.vote
+
+    vote = Vote(person, result)
+    vote._source_votes = known_votes
+
+    votes_dict[person] = vote
+    pending.remove(person)
+
+    return vote
+
+  @classmethod
+  def compute_all_votes(cls, persons, votes):
+    """
+    Compute all delegated votes.
+
+    @param persons: A population.
+    @param votes: Votes made.
+
+    @return: A list of made votes plus delegated votes.
+    """
+
+    if len(votes) == 0:
+      raise ValueError("At least one vote has to be cast.")
+    if len(persons) == 0:
+      raise ValueError("Zero-sized population.")
+
+    # A dictionary of (currently) finalized votes.
+    votes_dict = {}
+
+    # Persons we have to calculate delegation for.
+    pending = set()
+
+    for v in votes:
+      assert v.person not in votes_dict and v.person not in pending
+      votes_dict[v.person] = v
+
+    for p in persons:
+      if p in votes_dict:
+        continue
+
+      assert p not in pending
+      pending.add(p)
+
+    # A list of persons we could not compute votes for.
+    unable_votes = []
+
+    while len(pending) > 0:
+      for p in pending:
+        assert p not in votes_dict and p not in unable_votes
+
+        vote = cls._delegate_vote(p, votes_dict, pending)
+
+        if vote is None:
+          # This one we will never be able to compute.
+          unable_votes.append(p)
+
+          # If vote is not None, it has already been removed from pending.
+          pending.remove(p)
+
+        # We just want to pick an arbitrary p from pending in this inner loop.
+        # But we cannot continue looping in inner loop because we modified the pending set.
+        break
+
+    #if unable_votes:
+    #  print "Unable to compute vote for: %s" % ", ".join(["%s" % s for s in sorted(unable_votes)])
+
+    return votes_dict.values()
 
 def compute_results(votes):
   """
@@ -323,6 +446,14 @@ def compute_results(votes):
   
   return sum / len(votes)
 
+def checkEqual(iterator):
+  try:
+     iterator = iter(iterator)
+     first = next(iterator)
+     return all(abs(first - rest) < 1e-15 for rest in iterator)
+  except StopIteration:
+     return True
+
 def main():
   """
   Main function.
@@ -330,49 +461,62 @@ def main():
   It makes a random population, a random delegation network with random votes and computes results for all this.
   """
 
-  # Size of a random population.
-  size = 50
+  for seed in range(0, 1000):
+    # We initialize the random generator to a constant so that runs are reproducible.
+    random.seed(seed)
 
-  # Random population.
-  persons = [Person() for i in range(size)]
+    # Size of a random population.
+    size = 4
 
-  # We define random delegates.
-  for p in persons:
-    sample = random.sample(persons, random.randint(0, int(math.sqrt(size))))
-    delegates = [Delegate(s, random.uniform(0, 1)) for s in sample if s is not p]
-    sum = 1e-15
-    for s in delegates:
-      sum += s.ratio
-    for s in delegates:
-      s.ratio /= sum
-    p.delegates(delegates)
+    # Random population.
+    persons = [Person() for i in range(size)]
 
-  # And some from population randomly vote
-  random_sample = random.sample(persons, random.randint(1, size / 2))
-  votes = sorted([Vote(p, random.uniform(-1, 1)) for p in random_sample], key=lambda el: el.person)
+    # We define random delegates.
+    for p in persons:
+      sample = random.sample(persons, random.randint(0, int(math.sqrt(size))))
+      delegates = [Delegate(s, random.uniform(0, 1)) for s in sample if s is not p]
+      sum = 1e-15
+      for s in delegates:
+        sum += s.ratio
+      for s in delegates:
+        s.ratio /= sum
+      p.delegates(delegates)
 
-  print u"Delegations:"
+    # And some from population randomly vote
+    random_sample = random.sample(persons, random.randint(1, size / 2))
+    votes = sorted([Vote(p, random.uniform(-1, 1)) for p in random_sample], key=lambda el: el.person)
 
-  for p in persons:
-    print u" %s:" % p.name
-    for s in p.delegates():
-      print u"  %s" % s
+    results = []
+    results_votes = []
+    for cls in (RecursiveDelegationOne, RecursiveDelegationTwo):
+      before = time.clock()
+      all_votes = cls.compute_all_votes(persons, votes)
+      after = time.clock()
+      results.append(compute_results(all_votes))
+      results_votes.append(all_votes)
+      #print u"Result: %.2f, time: %.3fs" % (results[-1], after - before)
 
-  print u"Votes:"
+    if not checkEqual(results):
+      print results
 
-  for v in votes:
-    print u" %s" % v
+      print u"Delegations:"
 
-  before = time.clock()
-  votes = compute_all_votes(persons, votes)
-  after = time.clock()
-  print u"Result: %.2f, time: %.3fs" % (compute_results(votes), after - before)
+      for p in persons:
+        print u" %s:" % p.name
+        for s in p.delegates():
+          print u"  %s" % s
 
-  print u"Delegated votes:"
+      print u"Votes:"
 
-  for v in sorted(votes):
-    print u" %s" % v
-    print u"  %s" % v._source_votes
+      for v in votes:
+        print u" %s" % v
+
+      for i, all_votes in enumerate(results_votes):
+        print u"Delegated votes %s:" % i
+
+        for v in sorted(all_votes):
+          print u" %s" % v
+          print u"  %s" % v._source_votes
 
 if __name__ == "__main__":
   main()
