@@ -467,11 +467,14 @@ class LinearDelegation(object):
     computed_votes = np.linalg.solve(delegations, known_votes)
     computed_has_voted = np.linalg.solve(delegations, persons_who_voted)
 
+    with np.errstate(divide='ignore', invalid='ignore'):
+      normalized_votes = computed_votes / computed_has_voted
+
     all_votes = []
-    it = np.nditer(computed_votes, flags=['f_index'])
+    it = np.nditer(normalized_votes, flags=['f_index'])
     while not it.finished:
-      if computed_has_voted[it.index, 0] > 1e-12:
-        all_votes.append(Vote(persons[it.index], it[0] / computed_has_voted[it.index, 0]))
+      if not np.isnan(it[0]):
+        all_votes.append(Vote(persons[it.index], it[0]))
 
       it.iternext()
 
@@ -479,8 +482,7 @@ class LinearDelegation(object):
       all_votes[0]._debug_values = {
         'delegations': delegations,
         'known_votes': known_votes,
-        'computed_votes': computed_votes,
-        'computed_has_voted': computed_has_voted,
+        'normalized_votes': normalized_votes,
       }
 
     return all_votes
