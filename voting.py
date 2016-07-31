@@ -2,6 +2,7 @@
 
 import time
 import math
+import numpy as np
 import random
 
 class Base(object):
@@ -166,7 +167,7 @@ class Vote(Base):
     self.vote = vote
 
     # For debugging.
-    self._source_votes = []
+    self._debug_values = None
 
   def __unicode__(self):
     """
@@ -247,7 +248,7 @@ class RecursiveDelegationOne(object):
     # to compute the value during one graph traversal and then later on a different set because
     # some values are already known).
     vote = Vote(person, result)
-    vote._source_votes = known_votes
+    vote._debug_values = known_votes
 
     return vote
 
@@ -366,7 +367,7 @@ class RecursiveDelegationTwo(object):
       result += r * v.vote
 
     vote = Vote(person, result)
-    vote._source_votes = known_votes
+    vote._debug_values = known_votes
 
     votes_dict[person] = vote
     pending.remove(person)
@@ -431,6 +432,59 @@ class RecursiveDelegationTwo(object):
 
     return votes_dict.values()
 
+class LinearDelegation(object):
+  @classmethod
+  def compute_all_votes(cls, persons, votes):
+    """
+    Compute all delegated votes.
+
+    @param persons: A population.
+    @param votes: Votes made.
+
+    @return: A list of made votes plus delegated votes.
+    """
+
+    persons_to_index = {}
+    for i, person in enumerate(persons):
+      persons_to_index[person] = i
+
+    known_votes = np.zeros((len(persons), 1))
+    persons_who_voted = np.zeros((len(persons), 1))
+
+    for vote in votes:
+      known_votes[persons_to_index[vote.person], 0] = vote.vote
+      persons_who_voted[persons_to_index[vote.person], 0] = 1.0
+
+    delegations = np.identity(len(persons))
+
+    for person in persons:
+      if persons_who_voted[persons_to_index[person], 0] > 0.0:
+        continue
+
+      for delegate in person.delegates():
+        delegations[persons_to_index[person], persons_to_index[delegate.person]] = -delegate.ratio
+
+    computed_votes = np.linalg.solve(delegations, known_votes)
+    computed_has_voted = np.linalg.solve(delegations, persons_who_voted)
+
+    all_votes = []
+    it = np.nditer(computed_votes, flags=['f_index'])
+    while not it.finished:
+      if computed_has_voted[it.index, 0] > 1e-12:
+        all_votes.append(Vote(persons[it.index], it[0] / computed_has_voted[it.index, 0]))
+
+      it.iternext()
+
+    if all_votes:
+      all_votes[0]._debug_values = {
+        'delegations': delegations,
+        'known_votes': known_votes,
+        'computed_votes': computed_votes,
+        'computed_has_voted': computed_has_voted,
+      }
+
+    return all_votes
+
 def compute_results(votes):
   """
   Compute the result (average of all votes).
@@ -450,7 +504,7 @@ def checkEqual(iterator):
   try:
      iterator = iter(iterator)
      first = next(iterator)
-     return all(abs(first - rest) < 1e-15 for rest in iterator)
+     return all(abs(first - rest) < 1e-12 for rest in iterator)
   except StopIteration:
      return True
 
@@ -488,7 +542,7 @@ def main():
 
     results = []
     results_votes = []
-    for cls in (RecursiveDelegationOne, RecursiveDelegationTwo):
+    for cls in (RecursiveDelegationOne, RecursiveDelegationTwo, LinearDelegation):
       before = time.clock()
       all_votes = cls.compute_all_votes(persons, votes)
       after = time.clock()
@@ -516,7 +570,8 @@ def main():
 
         for v in sorted(all_votes):
           print u" %s" % v
-          print u"  %s" % v._source_votes
+          if v._debug_values is not None:
+            print u"  %s" % v._debug_values
 
 if __name__ == "__main__":
   main()
