@@ -53,7 +53,7 @@ class Person(Base):
     """
 
     return u"%s" % self.name
-  
+
   def __cmp__(self, other):
     """
     Compares this delegate to another.
@@ -65,14 +65,14 @@ class Person(Base):
       return cmp(unicode(self), unicode(other))
     else:
       return cmp(id(self), id(other))
-  
+
   def __hash__(self):
     """
     Returns hash value for this person.
     """
 
     return hash(unicode(self)) ^ id(self)
-  
+
   def delegates(self, delegates=None):
     """
     Gets or sets this person's delegates.
@@ -139,7 +139,7 @@ class Delegate(Base):
       return cmp(self.ratio, other.ratio)
     else:
       return cmp(self.person, other.person)
-  
+
   def __hash__(self):
     """
     Returns hash value for this delegate.
@@ -223,7 +223,7 @@ class RecursiveDelegationOne(object):
       assert d.person != person
 
       votes.append((d.ratio, cls._delegate_vote(d.person, votes_dict, pending, visited + [person])))
-  
+
     # We remove votes which were not possible to compute.
     known_votes = [(r, v) for (r, v) in votes if v is not None]
 
@@ -346,7 +346,7 @@ class RecursiveDelegationTwo(object):
       assert d.person != person
 
       votes.append((d.ratio, cls._delegate_vote(d.person, votes_dict, pending, visited + [person])))
-  
+
     # We remove votes which were not possible to compute.
     known_votes = [(r, v) for (r, v) in votes if v is not None]
 
@@ -493,11 +493,11 @@ def compute_results(votes):
 
   @return: Voting result.
   """
-  
+
   sum = 0.0
   for v in votes:
     sum += v.vote
-  
+
   return sum / len(votes)
 
 def checkEqual(iterator):
