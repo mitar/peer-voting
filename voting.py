@@ -473,7 +473,7 @@ class LinearDelegation(object):
     all_votes = []
     it = np.nditer(normalized_votes, flags=['f_index'])
     while not it.finished:
-      if not np.isnan(it[0]):
+      if np.isfinite(it[0]):
         all_votes.append(Vote(persons[it.index], it[0]))
 
       it.iternext()
