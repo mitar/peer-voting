@@ -467,6 +467,9 @@ class LinearDelegation(object):
     computed_votes = np.linalg.solve(delegations, known_votes)
     computed_has_voted = np.linalg.solve(delegations, persons_who_voted)
 
+    computed_votes[np.abs(computed_votes) < 1e-12] = 0.0
+    computed_has_voted[np.abs(computed_has_voted) < 1e-12] = 0.0
+
     with np.errstate(divide='ignore', invalid='ignore'):
       normalized_votes = computed_votes / computed_has_voted
 
