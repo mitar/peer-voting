@@ -82,7 +82,6 @@ class Person(Base):
 
     if delegates is not None:
       sum = 0.0
-      missing_self = True
       delegates_dict = {}
       for d in delegates:
         if d.ratio <= 0.0 or d.ratio > 1.0:
@@ -97,6 +96,8 @@ class Person(Base):
           delegates_dict[d.person] = d
       if sum > 1.0:
         raise ValueError("Sum of all ratios is larger than 1: %f" % sum)
+      if sum < 1.0 - 1e-12:
+        raise ValueError("Sum of all ratios is smaller than 1: %f" % sum)
       self._delegates = delegates_dict.values()
       self._delegates.sort(reverse=True)
 
