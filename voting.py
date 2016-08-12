@@ -465,27 +465,31 @@ class LinearDelegation(object):
       for delegate in person.delegates():
         delegations[persons_to_index[person], persons_to_index[delegate.person]] = -delegate.ratio
 
-    computed_has_voted = np.linalg.solve(delegations, persons_who_voted)
+    # Computing a least-squares solution to work also when there are cycles of non-voting people.
+    computed_has_voted = np.linalg.lstsq(delegations, persons_who_voted)[0]
     computed_has_voted[np.abs(computed_has_voted) < 1e-12] = 0.0
 
+    # We set to zero delegations to all people for who we are unable to compute votes.
     for i, voted in enumerate(computed_has_voted):
       if voted == 0:
+        # We set the whole column.
         delegations[:, i] = 0.0
+        # But keep the (i, i) element set to 1.0.
         delegations[i, i] = 1.0
 
+    # Normalize delegations to account for those delegations we set to zero above.
     for i, delegation in enumerate(delegations):
       sum = delegations[i].sum()
+      # If delegations are defined, sum is not 1.0.
       if sum != 1.0:
-        delegations[i] = delegations[i] / -(delegations[i].sum() - 1.0)
+        # We subtract 1.0 to account for the (i, i) element, and negate.
+        delegations[i] = delegations[i] / -(sum - 1.0)
         delegations[i, i] = 1.0
 
     computed_votes = np.linalg.solve(delegations, known_votes)
 
 
-    computed_votes[np.abs(computed_votes) < 1e-12] = 0.0
 
-    #with np.errstate(divide='ignore', invalid='ignore'):
-    #  normalized_votes = computed_votes / computed_has_voted
 
     all_votes = []
     for i, vote in enumerate(computed_votes):
