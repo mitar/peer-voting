@@ -488,9 +488,6 @@ class LinearDelegation(object):
 
     computed_votes = np.linalg.solve(delegations, known_votes)
 
-
-
-
     all_votes = []
     for i, vote in enumerate(computed_votes):
       if computed_has_voted[i] != 0:
@@ -500,6 +497,8 @@ class LinearDelegation(object):
       all_votes[0]._debug_values = {
         'delegations': delegations,
         'known_votes': known_votes,
+        'persons_who_voted': persons_who_voted,
+        'computed_has_voted': computed_has_voted,
         'computed_votes': computed_votes,
       }
 
