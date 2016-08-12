@@ -465,28 +465,38 @@ class LinearDelegation(object):
       for delegate in person.delegates():
         delegations[persons_to_index[person], persons_to_index[delegate.person]] = -delegate.ratio
 
-    computed_votes = np.linalg.solve(delegations, known_votes)
     computed_has_voted = np.linalg.solve(delegations, persons_who_voted)
-
-    computed_votes[np.abs(computed_votes) < 1e-12] = 0.0
     computed_has_voted[np.abs(computed_has_voted) < 1e-12] = 0.0
 
-    with np.errstate(divide='ignore', invalid='ignore'):
-      normalized_votes = computed_votes / computed_has_voted
+    for i, voted in enumerate(computed_has_voted):
+      if voted == 0:
+        delegations[:, i] = 0.0
+        delegations[i, i] = 1.0
+
+    for i, delegation in enumerate(delegations):
+      sum = delegations[i].sum()
+      if sum != 1.0:
+        delegations[i] = delegations[i] / -(delegations[i].sum() - 1.0)
+        delegations[i, i] = 1.0
+
+    computed_votes = np.linalg.solve(delegations, known_votes)
+
+
+    computed_votes[np.abs(computed_votes) < 1e-12] = 0.0
+
+    #with np.errstate(divide='ignore', invalid='ignore'):
+    #  normalized_votes = computed_votes / computed_has_voted
 
     all_votes = []
-    it = np.nditer(normalized_votes, flags=['f_index'])
-    while not it.finished:
-      if np.isfinite(it[0]):
-        all_votes.append(Vote(persons[it.index], it[0]))
-
-      it.iternext()
+    for i, vote in enumerate(computed_votes):
+      if computed_has_voted[i] != 0:
+        all_votes.append(Vote(persons[i], vote))
 
     if all_votes:
       all_votes[0]._debug_values = {
         'delegations': delegations,
         'known_votes': known_votes,
-        'normalized_votes': normalized_votes,
+        'computed_votes': computed_votes,
       }
 
     return all_votes
