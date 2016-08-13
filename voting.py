@@ -360,6 +360,8 @@ def random_examples():
   It makes a random population, a random delegation network with random votes and computes results for all this.
   """
 
+  np.set_printoptions(precision=20)
+
   for seed in range(1, 5000):
     # We initialize the random generator to a constant so that runs are reproducible.
     random.seed(seed)
