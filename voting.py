@@ -365,7 +365,7 @@ def random_examples():
     random.seed(seed)
 
     # Size of a random population.
-    size = 4
+    size = 1000
 
     # Random population.
     persons = [Person() for i in range(size)]
