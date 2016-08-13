@@ -95,10 +95,8 @@ class Person(Base):
           delegates_dict[d.person].ratio += d.ratio
         else:
           delegates_dict[d.person] = d
-      if sum > 1.0:
-        raise ValueError("Sum of all ratios is larger than 1: %f" % sum)
-      if delegates and sum < 1.0 - 1e-8:
-        raise ValueError("Sum of all ratios is smaller than 1: %f" % sum)
+      if delegates and sum != 1.0:
+        raise ValueError("Sum of all ratios is not 1: %.12f" % sum)
       self._delegates = delegates_dict.values()
       self._delegates.sort(reverse=True)
 
@@ -376,11 +374,15 @@ def random_examples():
     for p in persons:
       sample = random.sample(persons, random.randint(0, min(int(math.sqrt(size)), 100)))
       delegates = [Delegate(s, random.uniform(0, 1)) for s in sample if s is not p]
-      sum = 1e-12
-      for s in delegates:
-        sum += s.ratio
-      for s in delegates:
-        s.ratio /= sum
+      # If delegates are provided, we repeat multiple times until sum is really 1.0.
+      while delegates:
+        sum = 0.0
+        for s in delegates:
+          sum += s.ratio
+        if sum == 1.0:
+          break
+        for s in delegates:
+          s.ratio /= sum
       p.delegates(delegates)
 
     # And some from population randomly vote
