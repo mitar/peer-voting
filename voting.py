@@ -302,23 +302,23 @@ def checkEqual(iterator):
      return True
 
 def print_results(persons, votes, results_votes):
-  print u"Delegations:"
-
-  for p in persons:
-    print u" %s:" % p.name
-    for s in p.delegates():
-      print u"  %s" % s
-
-  print u"Votes:"
-
-  for v in votes:
-    print u" %s" % v
+  # print u"Delegations:"
+  #
+  # for p in persons:
+  #   print u" %s:" % p.name
+  #   for s in p.delegates():
+  #     print u"  %s" % s
+  #
+  # print u"Votes:"
+  #
+  # for v in votes:
+  #   print u" %s" % v
 
   for i, all_votes in enumerate(results_votes):
-    print u"Delegated votes %s:" % i
-
-    for v in sorted(all_votes):
-      print u" %s" % v
+    # print u"Delegated votes %s:" % i
+	#
+    # for v in sorted(all_votes):
+    #   print u" %s" % v
 
     for v in sorted(all_votes):
       if v._debug_values is not None:
