@@ -383,10 +383,31 @@ def random_examples():
         sum = 0.0
         for s in delegates:
           sum += s.ratio
+
         if sum == 1.0:
           break
+
         for s in delegates:
           s.ratio /= sum
+
+        sum = 0.0
+        for s in delegates:
+          sum += s.ratio
+
+        if sum == 1.0:
+          break
+
+        max(delegates, key=lambda d: d.ratio).ratio += 1.0 - sum
+
+        sum = 0.0
+        for s in delegates:
+          sum += s.ratio
+
+        if sum == 1.0:
+          break
+
+        delegates.pop()
+
       p.delegates(delegates)
 
     # And some from population randomly vote
