@@ -4,6 +4,7 @@ import time
 import math
 import numpy as np
 import random
+import scipy.sparse.linalg
 
 class Base(object):
   """
@@ -191,6 +192,14 @@ class Vote(Base):
 
 class LinearDelegation(object):
   @classmethod
+  def _least_squares(cls, a, b):
+    return np.linalg.lstsq(a, b)
+
+  @classmethod
+  def _solve(cls, a, b):
+    return np.linalg.solve(a, b)
+
+  @classmethod
   def compute_all_votes(cls, persons, votes):
     """
     Compute all delegated votes.
@@ -222,7 +231,7 @@ class LinearDelegation(object):
         delegations[persons_to_index[person], persons_to_index[delegate.person]] = -delegate.ratio
 
     # Computing a least-squares solution to work also when there are cycles of non-voting people.
-    computed_has_voted = np.linalg.lstsq(delegations, persons_who_voted)[0]
+    computed_has_voted = cls._least_squares(delegations, persons_who_voted)[0]
     computed_has_voted[np.abs(computed_has_voted) < 1e-12] = 0.0
 
     # We set to zero delegations to all people for who we are unable to compute votes.
@@ -242,7 +251,7 @@ class LinearDelegation(object):
         delegations[i] = delegations[i] / -(sum - 1.0)
         delegations[i, i] = 1.0
 
-    computed_votes = np.linalg.solve(delegations, known_votes)
+    computed_votes = cls._solve(delegations, known_votes)
 
     all_votes = []
     for i, vote in enumerate(computed_votes):
@@ -259,6 +268,15 @@ class LinearDelegation(object):
       }
 
     return all_votes
+
+class SparseLinearDelegation(LinearDelegation):
+  @classmethod
+  def _least_squares(cls, a, b):
+    return scipy.sparse.linalg.lsqr(scipy.sparse.csr_matrix(a), b)
+
+  @classmethod
+  def _solve(cls, a, b):
+    return scipy.sparse.linalg.spsolve(scipy.sparse.csr_matrix(a), b)
 
 def compute_results(votes):
   """
@@ -369,7 +387,7 @@ def random_examples():
 
     results = []
     results_votes = []
-    for cls in (LinearDelegation,):
+    for cls in (LinearDelegation, SparseLinearDelegation):
       before = time.clock()
       all_votes = cls.compute_all_votes(persons, votes)
       after = time.clock()
