@@ -233,9 +233,9 @@ class LinearDelegation(object):
     delegations = np.identity(n) - delegations_only
 
     # Computing a least-squares solution to work also when there are cycles of non-voting people.
-    computed_has_voted[np.abs(computed_has_voted) < 1e-12] = 0.0
     computed_has_voted = cls._least_squares(delegations, persons_who_voted)
 
+    computed_has_voted[computed_has_voted < 1e-12] = 0.0
     # We set to zero delegations to all people for who we are unable to compute votes.
     for i, voted in enumerate(computed_has_voted):
       if voted == 0:
