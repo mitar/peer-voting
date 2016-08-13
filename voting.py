@@ -191,7 +191,7 @@ class Vote(Base):
 class LinearDelegation(object):
   @classmethod
   def _least_squares(cls, a, b):
-    return np.linalg.lstsq(a, b)
+    return np.linalg.lstsq(a, b)[0]
 
   @classmethod
   def _solve(cls, a, b):
@@ -207,30 +207,34 @@ class LinearDelegation(object):
 
     @return: A list of made votes plus delegated votes.
     """
+    
+    n = len(persons)
 
     persons_to_index = {}
     for i, person in enumerate(persons):
       persons_to_index[person] = i
 
-    known_votes = np.zeros((len(persons), 1))
-    persons_who_voted = np.zeros((len(persons), 1))
+    known_votes = np.zeros((n, 1))
+    persons_who_voted = np.zeros((n, 1))
 
     for vote in votes:
       known_votes[persons_to_index[vote.person], 0] = vote.vote
       persons_who_voted[persons_to_index[vote.person], 0] = 1.0
-
-    delegations = np.identity(len(persons))
+        
+    delegations_only = np.zeros((n, n))
 
     for person in persons:
       if persons_who_voted[persons_to_index[person], 0] > 0.0:
         continue
 
       for delegate in person.delegates():
-        delegations[persons_to_index[person], persons_to_index[delegate.person]] = -delegate.ratio
+        delegations_only[persons_to_index[person], persons_to_index[delegate.person]] = delegate.ratio
+
+    delegations = np.identity(n) - delegations_only
 
     # Computing a least-squares solution to work also when there are cycles of non-voting people.
-    computed_has_voted = cls._least_squares(delegations, persons_who_voted)[0]
     computed_has_voted[np.abs(computed_has_voted) < 1e-12] = 0.0
+    computed_has_voted = cls._least_squares(delegations, persons_who_voted)
 
     # We set to zero delegations to all people for who we are unable to compute votes.
     for i, voted in enumerate(computed_has_voted):
@@ -270,7 +274,7 @@ class LinearDelegation(object):
 class SparseLinearDelegation(LinearDelegation):
   @classmethod
   def _least_squares(cls, a, b):
-    return scipy.sparse.linalg.lsqr(scipy.sparse.csr_matrix(a), b)
+    return scipy.sparse.linalg.lsqr(scipy.sparse.csr_matrix(a), b)[0].reshape((-1, 1))
 
   @classmethod
   def _solve(cls, a, b):
