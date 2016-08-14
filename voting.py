@@ -191,6 +191,8 @@ class Vote(Base):
 class LinearDelegation(object):
   @classmethod
   def _least_squares(cls, a, b):
+    # TODO: How to assure that result is 0 for people for who we cannot compute delegations and are part of a cycle?
+    #       nnls seems to work experimentally, but we have to be sure.
     return scipy.optimize.nnls(a, b.reshape(-1))[0]
 
   @classmethod
@@ -272,6 +274,7 @@ class LinearDelegation(object):
 
     return all_votes
 
+# TODO: Sparse computation is faster but lsqr does not always return zeros for people which part of a cycle.
 class SparseLinearDelegation(LinearDelegation):
   #@classmethod
   #def _least_squares(cls, a, b):
