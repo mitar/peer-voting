@@ -85,7 +85,7 @@ class Person(Base):
       sum = 0.0
       delegates_dict = {}
       for d in delegates:
-        if d.ratio < 0.001 or d.ratio > 1.0:
+        if d.ratio <= 0.0 or d.ratio > 1.0:
           raise ValueError("Invalid ratio: %f" % d.ratio)
         else:
           sum += d.ratio
