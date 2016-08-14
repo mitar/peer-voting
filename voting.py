@@ -85,7 +85,7 @@ class Person(Base):
       sum = 0.0
       delegates_dict = {}
       for d in delegates:
-        if d.ratio <= 0.0 or d.ratio > 1.0:
+        if d.ratio < 0.001 or d.ratio > 1.0:
           raise ValueError("Invalid ratio: %f" % d.ratio)
         else:
           sum += d.ratio
@@ -377,7 +377,7 @@ def random_examples():
     # We define random delegates.
     for p in persons:
       sample = random.sample(persons, random.randint(0, min(int(math.sqrt(size)), 100)))
-      delegates = [Delegate(s, random.uniform(0, 1)) for s in sample if s is not p]
+      delegates = [Delegate(s, random.uniform(0.001, 1)) for s in sample if s is not p]
       # If delegates are provided, we repeat multiple times until sum is really 1.0.
       while delegates:
         sum = 0.0
