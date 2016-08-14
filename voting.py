@@ -191,7 +191,7 @@ class Vote(Base):
 class LinearDelegation(object):
   @classmethod
   def _least_squares(cls, a, b):
-    return np.linalg.lstsq(a, b)[0]
+    return scipy.optimize.nnls(a, b.reshape(-1))[0]
 
   @classmethod
   def _solve(cls, a, b):
