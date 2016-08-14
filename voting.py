@@ -273,9 +273,9 @@ class LinearDelegation(object):
     return all_votes
 
 class SparseLinearDelegation(LinearDelegation):
-  @classmethod
-  def _least_squares(cls, a, b):
-    return scipy.sparse.linalg.lsqr(scipy.sparse.csr_matrix(a), b)[0].reshape((-1, 1))
+  #@classmethod
+  #def _least_squares(cls, a, b):
+  #  return scipy.sparse.linalg.lsqr(scipy.sparse.csr_matrix(a), b)[0].reshape((-1, 1))
 
   @classmethod
   def _solve(cls, a, b):
@@ -417,7 +417,7 @@ def random_examples():
 
     results = []
     results_votes = []
-    for cls in (LinearDelegation, SparseLinearDelegation):
+    for cls in (LinearDelegation,): #SparseLinearDelegation
       before = time.clock()
       all_votes = cls.compute_all_votes(persons, votes)
       after = time.clock()
